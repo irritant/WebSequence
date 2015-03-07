@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>WebSequence Demo</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		
+		<!-- Noise generator -->
+		<script type="text/javascript" src="../src/web-worker-factory.js"></script>
+		<script type="text/javascript" src="../src/web-sequence.js"></script>
+		<script type="javascript/worker" src="../src/web-sequence-worker.js"></script>
+
+		<!-- Page Script -->
+		<script type="text/javascript">
+			window.addEventListener('load', function(e) {
+
+				// Obtain a new audio context:
+				var context = null;
+				if (typeof window.AudioContext != 'undefined') {
+					context = new AudioContext();
+				} else if (typeof window.webkitAudioContext != 'undefined') {
+					context = new webkitAudioContext();
+				}
+
+				if (!context) {
+					console.log('Web Audio API is not supported.');
+					return;
+				}
+
+				window.osc1 = context.createOscillator();
+				window.osc1.type = 'square';
+				window.osc1.frequency.value = 440.0;
+				window.osc1.start(0);
+
+				window.osc2 = context.createOscillator();
+				window.osc2.type = 'triangle';
+				window.osc2.frequency.value = 440.0;
+				window.osc2.start(0);
+
+				window.filterNode = context.createBiquadFilter();
+				window.filterNode.type = 'lowpass';
+				window.filterNode.frequency.value = 3500.0;
+				window.filterNode.Q.value = 10.0;
+
+				window.gainNode = context.createGain();
+				window.gainNode.gain.value = 0.0;
+
+				window.osc1.connect(window.filterNode);
+				window.osc2.connect(window.filterNode);
+				window.filterNode.connect(window.gainNode);
+				window.gainNode.connect(context.destination);
+
+				window.sequence1 = new WebSequence();
+				window.sequence1.addEvent(function() {
+					window.osc1.frequency.value = 220.0;
+				});
+				window.sequence1.addEvent(function() {
+					window.osc1.frequency.value = 329.63;
+				});
+				window.sequence1.addEvent(function() {
+					window.osc1.frequency.value = 440.0;
+				});
+
+				window.sequence2 = new WebSequence();
+				window.sequence2.addEvent(function() {
+					window.osc2.frequency.value = 110.0;
+				});
+				window.sequence2.addEvent(function() {
+					window.osc2.frequency.value = 164.81;
+				});
+				
+				window.timer = new WebSequenceTimer();
+				window.timer.addSequence(window.sequence1);
+				window.timer.addSequence(window.sequence2);
+				window.timer.init(
+					function(timer) {
+						window.timer.updateIntervalWithTempo(120.0, 1/8);
+					}, 
+					function(timer, status, textStatus) {
+						console.log(textStatus);
+					});
+
+				// Configure mouse event listeners:
+				document.getElementById('sequence-trigger').addEventListener('mousedown', function(e) {
+					e.preventDefault();
+					window.gainNode.gain.value = 0.2;
+					window.timer.start();
+					window.sequence1.play();
+					window.sequence2.play();
+				});
+
+				document.getElementById('sequence-trigger').addEventListener('mouseup', function(e) {
+					e.preventDefault();
+					window.sequence1.stop();
+					window.sequence2.stop();
+					window.timer.stop();
+					window.gainNode.gain.value = 0.0;
+				});
+				
+			});
+		</script>
+
+		<!-- Styles -->
+		<style>
+			body {
+				font-family: Helvetica, Arial, sans-serif;
+			}
+
+			a {
+				text-decoration: none;
+				color: #0000FF;
+			}
+
+			a:hover {
+				text-decoration: underline;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>WebSequence</h1>
+		<p>Sequencing for WebAudio.</p>
+		<p><a href="https://github.com/irritant/WebSequence">https://github.com/irritant/WebSequence</a></p>
+		<p>This demo uses two WebSequence instances controlled by a single WebSequenceTimer. The lead sequence repeats three notes while the bass sequence repeats two.</p>
+		<p><button id="sequence-trigger">Click &amp; Hold</button></p>
+	</body>
+</html>
